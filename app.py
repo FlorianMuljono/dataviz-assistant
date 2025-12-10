@@ -301,14 +301,17 @@ DATASETS = {
     },
     "Airbnb Listings (New Zealand)": {
         "file_id": "1W-peKALdxBzOHx_muetYIz_2Bb9Vg9Gh",
-        "description": "New Zealand Airbnb property listings with details on room types, pricing, availability, reviews, and host information. Useful for analyzing pricing patterns, popular areas, and host behaviors in the NZ vacation rental market.",
+        "description": "New Zealand Airbnb property listings with details on room types, pricing, availability, reviews, and host information. Useful for travelers planning visits, hosts optimizing their listings, and regulators monitoring short-term rental impacts.",
         "icon": "🏡",
         "questions": [
-            {"category": "Pricing Analysis", "question": "What is the average price by room type?", "code_key": "airbnb_room_price"},
-            {"category": "Geographical Analysis", "question": "Which areas have the highest average listing prices?", "code_key": "airbnb_area_price"},
-            {"category": "Availability Analysis", "question": "How does availability vary across different room types?", "code_key": "airbnb_availability"},
-            {"category": "Reviews Analysis", "question": "What is the relationship between number of reviews and price?", "code_key": "airbnb_reviews_price"},
-            {"category": "Host Analysis", "question": "Which hosts have the most listings?", "code_key": "airbnb_top_hosts"}
+            {"category": "🧳 For Tourists", "question": "What is the average price by neighbourhood - where are the best value areas?", "code_key": "airbnb_neighbourhood_price"},
+            {"category": "🧳 For Tourists", "question": "How does pricing vary by room type and what's the price distribution?", "code_key": "airbnb_price_distribution"},
+            {"category": "🧳 For Tourists", "question": "How do prices compare between entire homes vs private rooms by area?", "code_key": "airbnb_price_comparison"},
+            {"category": "🏠 For Hosts", "question": "What factors correlate with more reviews (proxy for bookings)?", "code_key": "airbnb_success_factors"},
+            {"category": "🏠 For Hosts", "question": "Which neighbourhoods have the highest-rated listings?", "code_key": "airbnb_top_rated_areas"},
+            {"category": "📋 For Regulators", "question": "Which areas have the highest concentration of listings (housing impact)?", "code_key": "airbnb_listing_concentration"},
+            {"category": "📋 For Regulators", "question": "What percentage of hosts own multiple properties (commercial vs individual)?", "code_key": "airbnb_host_portfolio"},
+            {"category": "📋 For Regulators", "question": "What is the average availability - are listings actually available?", "code_key": "airbnb_availability_analysis"}
         ]
     }
 }
@@ -413,112 +416,327 @@ ax.spines['top'].set_visible(False)
 ax.spines['right'].set_visible(False)
 """,
 
-    "airbnb_room_price": """
-# Average Price by Room Type
-# Clean price column - remove $ and commas, convert to numeric
-df['price_clean'] = pd.to_numeric(df['price'].astype(str).str.replace('$', '').str.replace(',', ''), errors='coerce')
-
-room_avg = df.groupby('room_type')['price_clean'].mean().sort_values(ascending=True)
-
-colors = sns.color_palette("Greens", len(room_avg))
-bars = ax.barh(room_avg.index, room_avg.values, color=colors)
-ax.set_xlabel('Average Price ($)', fontsize=12)
-ax.set_ylabel('Room Type', fontsize=12)
-ax.set_title('Average Airbnb Price by Room Type', fontsize=14, fontweight='bold', color='#0d3025')
-ax.xaxis.set_major_formatter(plt.FuncFormatter(lambda x, p: f'${x:,.0f}'))
-ax.spines['top'].set_visible(False)
-ax.spines['right'].set_visible(False)
-
-for bar, val in zip(bars, room_avg.values):
-    ax.text(val + 2, bar.get_y() + bar.get_height()/2, 
-            f'${val:,.0f}', va='center', fontsize=10, fontweight='bold', color='#1a5f4a')
-""",
+    # =============================================
+    # AIRBNB NEW ZEALAND - 8 MEANINGFUL QUESTIONS
+    # =============================================
     
-    "airbnb_area_price": """
-# Top 15 Areas by Average Price
-# Clean price column - remove $ and commas, convert to numeric
+    # 1. For Tourists: Best value areas
+    "airbnb_neighbourhood_price": """
+# Average Price by Neighbourhood - Best Value Areas
+# Clean price column
 df['price_clean'] = pd.to_numeric(df['price'].astype(str).str.replace('$', '').str.replace(',', ''), errors='coerce')
 
-area_avg = df.groupby('neighbourhood')['price_clean'].mean().sort_values(ascending=False).head(15)
-area_avg = area_avg.sort_values(ascending=True)
+neighbourhood_avg = df.groupby('neighbourhood')['price_clean'].agg(['mean', 'count']).reset_index()
+neighbourhood_avg.columns = ['neighbourhood', 'avg_price', 'listings']
+neighbourhood_avg = neighbourhood_avg[neighbourhood_avg['listings'] >= 10]  # Min 10 listings
+neighbourhood_avg = neighbourhood_avg.sort_values('avg_price', ascending=True).head(20)
 
-colors = sns.color_palette("Greens", len(area_avg))
-bars = ax.barh(area_avg.index, area_avg.values, color=colors)
-ax.set_xlabel('Average Price ($)', fontsize=12)
+colors = sns.color_palette("Greens", len(neighbourhood_avg))
+bars = ax.barh(neighbourhood_avg['neighbourhood'], neighbourhood_avg['avg_price'], color=colors)
+ax.set_xlabel('Average Price per Night ($)', fontsize=12)
 ax.set_ylabel('Neighbourhood', fontsize=12)
-ax.set_title('Top 15 Areas with Highest Average Airbnb Prices', fontsize=14, fontweight='bold', color='#0d3025')
+ax.set_title('Best Value Neighbourhoods (Lowest Average Prices)', fontsize=14, fontweight='bold', color='#0d3025')
 ax.xaxis.set_major_formatter(plt.FuncFormatter(lambda x, p: f'${x:,.0f}'))
 ax.spines['top'].set_visible(False)
 ax.spines['right'].set_visible(False)
+
+# Add listing count annotation
+for bar, (_, row) in zip(bars, neighbourhood_avg.iterrows()):
+    ax.text(row['avg_price'] + 2, bar.get_y() + bar.get_height()/2, 
+            f'${row["avg_price"]:.0f} ({row["listings"]:.0f} listings)', 
+            va='center', fontsize=8, color='#1a5f4a')
 """,
+
+    # 2. For Tourists: Price distribution by room type
+    "airbnb_price_distribution": """
+# Price Distribution by Room Type
+# Clean price column
+df['price_clean'] = pd.to_numeric(df['price'].astype(str).str.replace('$', '').str.replace(',', ''), errors='coerce')
+df_clean = df[df['price_clean'] < df['price_clean'].quantile(0.95)]  # Remove top 5% outliers
+
+fig.clear()
+fig, axes = plt.subplots(1, 2, figsize=(14, 6))
+
+# Left: Box plot by room type
+palette = ['#0d3025', '#1a5f4a', '#2d8a6e', '#4ecca3']
+sns.boxplot(data=df_clean, x='room_type', y='price_clean', palette=palette, ax=axes[0])
+axes[0].set_xlabel('Room Type', fontsize=12)
+axes[0].set_ylabel('Price per Night ($)', fontsize=12)
+axes[0].set_title('Price Distribution by Room Type', fontsize=14, fontweight='bold', color='#0d3025')
+axes[0].yaxis.set_major_formatter(plt.FuncFormatter(lambda x, p: f'${x:,.0f}'))
+axes[0].tick_params(axis='x', rotation=15)
+
+# Right: Overall histogram
+sns.histplot(data=df_clean, x='price_clean', bins=50, kde=True, color='#1a5f4a', ax=axes[1])
+axes[1].set_xlabel('Price per Night ($)', fontsize=12)
+axes[1].set_ylabel('Number of Listings', fontsize=12)
+axes[1].set_title('Overall Price Distribution', fontsize=14, fontweight='bold', color='#0d3025')
+axes[1].xaxis.set_major_formatter(plt.FuncFormatter(lambda x, p: f'${x:,.0f}'))
+
+median_price = df_clean['price_clean'].median()
+axes[1].axvline(median_price, color='#e63946', linestyle='--', linewidth=2)
+axes[1].text(median_price + 5, axes[1].get_ylim()[1]*0.9, f'Median: ${median_price:.0f}', 
+             color='#e63946', fontweight='bold')
+
+plt.tight_layout()
+ax = axes[0]  # For compatibility
+""",
+
+    # 3. For Tourists: Entire home vs Private room by area
+    "airbnb_price_comparison": """
+# Entire Home vs Private Room Prices by Top Areas
+# Clean price column
+df['price_clean'] = pd.to_numeric(df['price'].astype(str).str.replace('$', '').str.replace(',', ''), errors='coerce')
+
+# Focus on main room types
+df_filtered = df[df['room_type'].isin(['Entire home/apt', 'Private room'])]
+
+# Get top 12 neighbourhoods by listing count
+top_areas = df_filtered['neighbourhood'].value_counts().head(12).index.tolist()
+df_top = df_filtered[df_filtered['neighbourhood'].isin(top_areas)]
+
+# Calculate average by neighbourhood and room type
+pivot = df_top.groupby(['neighbourhood', 'room_type'])['price_clean'].mean().unstack()
+pivot = pivot.sort_values('Entire home/apt', ascending=True)
+
+# Plot grouped bar chart
+x = range(len(pivot))
+width = 0.35
+
+bars1 = ax.barh([i - width/2 for i in x], pivot['Entire home/apt'], width, label='Entire home/apt', color='#1a5f4a')
+bars2 = ax.barh([i + width/2 for i in x], pivot['Private room'], width, label='Private room', color='#4ecca3')
+
+ax.set_yticks(x)
+ax.set_yticklabels(pivot.index, fontsize=9)
+ax.set_xlabel('Average Price per Night ($)', fontsize=12)
+ax.set_ylabel('Neighbourhood', fontsize=12)
+ax.set_title('Price Comparison: Entire Home vs Private Room by Area', fontsize=14, fontweight='bold', color='#0d3025')
+ax.xaxis.set_major_formatter(plt.FuncFormatter(lambda x, p: f'${x:,.0f}'))
+ax.legend(loc='lower right')
+ax.spines['top'].set_visible(False)
+ax.spines['right'].set_visible(False)
+""",
+
+    # 4. For Hosts: Success factors (reviews correlation)
+    "airbnb_success_factors": """
+# Factors Correlating with More Reviews (Proxy for Bookings)
+# Clean price column
+df['price_clean'] = pd.to_numeric(df['price'].astype(str).str.replace('$', '').str.replace(',', ''), errors='coerce')
+
+fig.clear()
+fig, axes = plt.subplots(1, 2, figsize=(14, 6))
+
+# Left: Reviews vs Price
+sample = df.dropna(subset=['price_clean', 'number_of_reviews'])
+sample = sample[sample['price_clean'] < sample['price_clean'].quantile(0.95)]
+sample = sample.sample(n=min(2000, len(sample)), random_state=42)
+
+sns.scatterplot(data=sample, x='price_clean', y='number_of_reviews', alpha=0.5, color='#4ecca3', ax=axes[0])
+axes[0].set_xlabel('Price per Night ($)', fontsize=12)
+axes[0].set_ylabel('Number of Reviews', fontsize=12)
+axes[0].set_title('Reviews vs Price', fontsize=14, fontweight='bold', color='#0d3025')
+
+corr = sample[['price_clean', 'number_of_reviews']].corr().iloc[0,1]
+axes[0].text(0.95, 0.95, f'Correlation: {corr:.3f}', transform=axes[0].transAxes, 
+             fontsize=11, ha='right', va='top', color='#1a5f4a',
+             bbox=dict(boxstyle='round', facecolor='#e8f5f0', alpha=0.8))
+
+# Right: Average reviews by room type
+room_reviews = df.groupby('room_type')['number_of_reviews'].mean().sort_values(ascending=True)
+colors = sns.color_palette("Greens", len(room_reviews))
+bars = axes[1].barh(room_reviews.index, room_reviews.values, color=colors)
+axes[1].set_xlabel('Average Number of Reviews', fontsize=12)
+axes[1].set_ylabel('Room Type', fontsize=12)
+axes[1].set_title('Average Reviews by Room Type', fontsize=14, fontweight='bold', color='#0d3025')
+
+for bar, val in zip(bars, room_reviews.values):
+    axes[1].text(val + 0.5, bar.get_y() + bar.get_height()/2, f'{val:.1f}', 
+                 va='center', fontsize=10, fontweight='bold', color='#1a5f4a')
+
+plt.tight_layout()
+ax = axes[0]
+""",
+
+    # 5. For Hosts: Top rated areas
+    "airbnb_top_rated_areas": """
+# Neighbourhoods with Highest-Rated Listings
+# Find review score columns
+score_cols = [col for col in df.columns if 'review' in col.lower() and 'score' in col.lower()]
+review_col = [col for col in df.columns if col in ['review_scores_rating', 'reviews_per_month', 'number_of_reviews']]
+
+if score_cols:
+    rating_col = score_cols[0]
+    df_rated = df[df[rating_col].notna() & (df[rating_col] > 0)]
     
-    "airbnb_availability": """
-# Availability by Room Type
-availability_col = [col for col in df.columns if 'availability' in col.lower()]
+    # Get areas with enough reviews
+    area_ratings = df_rated.groupby('neighbourhood').agg({
+        rating_col: 'mean',
+        'number_of_reviews': 'sum'
+    }).reset_index()
+    area_ratings.columns = ['neighbourhood', 'avg_rating', 'total_reviews']
+    area_ratings = area_ratings[area_ratings['total_reviews'] >= 50]
+    area_ratings = area_ratings.sort_values('avg_rating', ascending=True).tail(15)
+    
+    colors = sns.color_palette("Greens", len(area_ratings))
+    bars = ax.barh(area_ratings['neighbourhood'], area_ratings['avg_rating'], color=colors)
+    ax.set_xlabel('Average Rating Score', fontsize=12)
+    ax.set_ylabel('Neighbourhood', fontsize=12)
+    ax.set_title('Top 15 Highest-Rated Neighbourhoods', fontsize=14, fontweight='bold', color='#0d3025')
+    ax.set_xlim(left=area_ratings['avg_rating'].min() - 2)
+    
+    for bar, (_, row) in zip(bars, area_ratings.iterrows()):
+        ax.text(row['avg_rating'] + 0.1, bar.get_y() + bar.get_height()/2, 
+                f'{row["avg_rating"]:.1f}', va='center', fontsize=9, fontweight='bold', color='#1a5f4a')
+else:
+    # Fallback: use number of reviews as proxy
+    area_reviews = df.groupby('neighbourhood')['number_of_reviews'].agg(['mean', 'sum']).reset_index()
+    area_reviews.columns = ['neighbourhood', 'avg_reviews', 'total_reviews']
+    area_reviews = area_reviews[area_reviews['total_reviews'] >= 100]
+    area_reviews = area_reviews.sort_values('avg_reviews', ascending=True).tail(15)
+    
+    colors = sns.color_palette("Greens", len(area_reviews))
+    bars = ax.barh(area_reviews['neighbourhood'], area_reviews['avg_reviews'], color=colors)
+    ax.set_xlabel('Average Reviews per Listing', fontsize=12)
+    ax.set_ylabel('Neighbourhood', fontsize=12)
+    ax.set_title('Most Popular Neighbourhoods (by Reviews)', fontsize=14, fontweight='bold', color='#0d3025')
+
+ax.spines['top'].set_visible(False)
+ax.spines['right'].set_visible(False)
+""",
+
+    # 6. For Regulators: Listing concentration
+    "airbnb_listing_concentration": """
+# Listing Concentration by Neighbourhood (Housing Impact)
+listing_counts = df['neighbourhood'].value_counts().head(20)
+listing_counts = listing_counts.sort_values(ascending=True)
+
+total_listings = len(df)
+percentages = (listing_counts / total_listings * 100)
+
+colors = sns.color_palette("Greens", len(listing_counts))
+bars = ax.barh(listing_counts.index, listing_counts.values, color=colors)
+ax.set_xlabel('Number of Listings', fontsize=12)
+ax.set_ylabel('Neighbourhood', fontsize=12)
+ax.set_title('Listing Concentration by Neighbourhood\\n(Potential Housing Impact Areas)', fontsize=14, fontweight='bold', color='#0d3025')
+ax.spines['top'].set_visible(False)
+ax.spines['right'].set_visible(False)
+
+# Add percentage annotations
+for bar, (area, count) in zip(bars, listing_counts.items()):
+    pct = count / total_listings * 100
+    ax.text(count + 5, bar.get_y() + bar.get_height()/2, 
+            f'{count:,} ({pct:.1f}%)', va='center', fontsize=8, color='#1a5f4a')
+
+# Add summary text
+top5_pct = listing_counts.tail(5).sum() / total_listings * 100
+ax.text(0.95, 0.05, f'Top 5 areas = {top5_pct:.1f}% of all listings', 
+        transform=ax.transAxes, fontsize=10, ha='right', va='bottom',
+        bbox=dict(boxstyle='round', facecolor='#fff3cd', alpha=0.8, edgecolor='#ffc107'))
+""",
+
+    # 7. For Regulators: Commercial vs Individual hosts
+    "airbnb_host_portfolio": """
+# Commercial vs Individual Hosts Analysis
+host_listings = df.groupby('host_id').size().reset_index(name='listing_count')
+
+# Categorize hosts
+def categorize_host(count):
+    if count == 1:
+        return '1 listing (Individual)'
+    elif count <= 3:
+        return '2-3 listings (Small)'
+    elif count <= 10:
+        return '4-10 listings (Medium)'
+    else:
+        return '10+ listings (Commercial)'
+
+host_listings['category'] = host_listings['listing_count'].apply(categorize_host)
+
+# Count hosts in each category
+category_counts = host_listings['category'].value_counts()
+category_order = ['1 listing (Individual)', '2-3 listings (Small)', '4-10 listings (Medium)', '10+ listings (Commercial)']
+category_counts = category_counts.reindex(category_order)
+
+fig.clear()
+fig, axes = plt.subplots(1, 2, figsize=(14, 6))
+
+# Left: Pie chart of host distribution
+colors = ['#4ecca3', '#2d8a6e', '#1a5f4a', '#0d3025']
+wedges, texts, autotexts = axes[0].pie(category_counts.values, labels=category_counts.index, 
+                                        autopct='%1.1f%%', colors=colors, explode=[0.02]*4)
+axes[0].set_title('Distribution of Hosts by Portfolio Size', fontsize=14, fontweight='bold', color='#0d3025')
+for autotext in autotexts:
+    autotext.set_fontsize(10)
+    autotext.set_fontweight('bold')
+
+# Right: Listings controlled by each category
+listings_by_cat = host_listings.groupby('category')['listing_count'].sum()
+listings_by_cat = listings_by_cat.reindex(category_order)
+total_listings = listings_by_cat.sum()
+
+bars = axes[1].bar(range(len(listings_by_cat)), listings_by_cat.values, color=colors)
+axes[1].set_xticks(range(len(listings_by_cat)))
+axes[1].set_xticklabels(['Individual\\n(1)', 'Small\\n(2-3)', 'Medium\\n(4-10)', 'Commercial\\n(10+)'], fontsize=10)
+axes[1].set_ylabel('Number of Listings Controlled', fontsize=12)
+axes[1].set_title('Listings Controlled by Host Type', fontsize=14, fontweight='bold', color='#0d3025')
+
+for bar, val in zip(bars, listings_by_cat.values):
+    pct = val / total_listings * 100
+    axes[1].text(bar.get_x() + bar.get_width()/2, bar.get_height() + 20, 
+                 f'{val:,.0f}\\n({pct:.1f}%)', ha='center', fontsize=9, fontweight='bold', color='#1a5f4a')
+
+plt.tight_layout()
+ax = axes[0]
+""",
+
+    # 8. For Regulators: Availability analysis
+    "airbnb_availability_analysis": """
+# Availability Analysis - Are Listings Actually Available?
+availability_col = [col for col in df.columns if 'availability' in col.lower() and '365' in col]
+if not availability_col:
+    availability_col = [col for col in df.columns if 'availability' in col.lower()]
+
 if availability_col:
     avail_col = availability_col[0]
-    room_avail = df.groupby('room_type')[avail_col].mean().sort_values(ascending=True)
+    df['availability'] = pd.to_numeric(df[avail_col], errors='coerce')
     
+    fig.clear()
+    fig, axes = plt.subplots(1, 2, figsize=(14, 6))
+    
+    # Left: Distribution of availability
+    sns.histplot(data=df, x='availability', bins=50, kde=True, color='#1a5f4a', ax=axes[0])
+    axes[0].set_xlabel('Days Available per Year', fontsize=12)
+    axes[0].set_ylabel('Number of Listings', fontsize=12)
+    axes[0].set_title('Distribution of Listing Availability', fontsize=14, fontweight='bold', color='#0d3025')
+    
+    # Add availability categories
+    low_avail = (df['availability'] < 30).sum() / len(df) * 100
+    med_avail = ((df['availability'] >= 30) & (df['availability'] < 180)).sum() / len(df) * 100
+    high_avail = (df['availability'] >= 180).sum() / len(df) * 100
+    
+    axes[0].text(0.95, 0.95, f'Low (<30 days): {low_avail:.1f}%\\nMedium (30-180): {med_avail:.1f}%\\nHigh (>180): {high_avail:.1f}%', 
+                 transform=axes[0].transAxes, fontsize=10, ha='right', va='top',
+                 bbox=dict(boxstyle='round', facecolor='#e8f5f0', alpha=0.8))
+    
+    # Right: Average availability by room type
+    room_avail = df.groupby('room_type')['availability'].mean().sort_values(ascending=True)
     colors = sns.color_palette("Greens", len(room_avail))
-    bars = ax.barh(room_avail.index, room_avail.values, color=colors)
-    ax.set_xlabel('Average Availability (days)', fontsize=12)
-    ax.set_ylabel('Room Type', fontsize=12)
-    ax.set_title('Average Availability by Room Type', fontsize=14, fontweight='bold', color='#0d3025')
-    ax.spines['top'].set_visible(False)
-    ax.spines['right'].set_visible(False)
+    bars = axes[1].barh(room_avail.index, room_avail.values, color=colors)
+    axes[1].set_xlabel('Average Days Available per Year', fontsize=12)
+    axes[1].set_ylabel('Room Type', fontsize=12)
+    axes[1].set_title('Average Availability by Room Type', fontsize=14, fontweight='bold', color='#0d3025')
+    
+    for bar, val in zip(bars, room_avail.values):
+        axes[1].text(val + 2, bar.get_y() + bar.get_height()/2, f'{val:.0f} days', 
+                     va='center', fontsize=10, fontweight='bold', color='#1a5f4a')
+    
+    plt.tight_layout()
+    ax = axes[0]
 else:
-    ax.text(0.5, 0.5, 'Availability column not found', ha='center', va='center', 
+    ax.text(0.5, 0.5, 'Availability data not found in dataset', ha='center', va='center', 
             transform=ax.transAxes, fontsize=14, color='#1a5f4a')
     ax.set_frame_on(False)
     ax.tick_params(left=False, bottom=False, labelleft=False, labelbottom=False)
-""",
-    
-    "airbnb_reviews_price": """
-# Relationship between Reviews and Price
-# Clean price column - remove $ and commas, convert to numeric
-df['price_clean'] = pd.to_numeric(df['price'].astype(str).str.replace('$', '').str.replace(',', ''), errors='coerce')
-
-sample = df.dropna(subset=['price_clean', 'number_of_reviews']).sample(n=min(3000, len(df)), random_state=42)
-
-sns.scatterplot(data=sample, x='number_of_reviews', y='price_clean', 
-                alpha=0.5, s=30, color='#4ecca3', ax=ax)
-                
-ax.set_xlabel('Number of Reviews', fontsize=12)
-ax.set_ylabel('Price ($)', fontsize=12)
-ax.set_title('Relationship: Number of Reviews vs Price', fontsize=14, fontweight='bold', color='#0d3025')
-ax.yaxis.set_major_formatter(plt.FuncFormatter(lambda x, p: f'${x:,.0f}'))
-ax.spines['top'].set_visible(False)
-ax.spines['right'].set_visible(False)
-
-corr = sample[['number_of_reviews', 'price_clean']].corr().iloc[0,1]
-ax.text(0.95, 0.95, f'Correlation: {corr:.3f}', transform=ax.transAxes, 
-        fontsize=11, ha='right', va='top', color='#1a5f4a',
-        bbox=dict(boxstyle='round', facecolor='#e8f5f0', alpha=0.8, edgecolor='#1a5f4a'))
-""",
-    
-    "airbnb_top_hosts": """
-# Top 15 Hosts by Number of Listings
-host_col = [col for col in df.columns if 'host' in col.lower() and 'name' in col.lower()]
-if host_col:
-    host_counts = df[host_col[0]].value_counts().head(15)
-else:
-    host_counts = df['host_id'].astype(str).value_counts().head(15)
-
-host_counts = host_counts.sort_values(ascending=True)
-
-colors = sns.color_palette("Greens", len(host_counts))
-bars = ax.barh(range(len(host_counts)), host_counts.values, color=colors)
-ax.set_yticks(range(len(host_counts)))
-ax.set_yticklabels([str(x)[:20] + '...' if len(str(x)) > 20 else str(x) for x in host_counts.index], fontsize=9)
-ax.set_xlabel('Number of Listings', fontsize=12)
-ax.set_ylabel('Host', fontsize=12)
-ax.set_title('Top 15 Hosts with Most Listings', fontsize=14, fontweight='bold', color='#0d3025')
-ax.spines['top'].set_visible(False)
-ax.spines['right'].set_visible(False)
-
-for bar, val in zip(bars, host_counts.values):
-    ax.text(val + 0.5, bar.get_y() + bar.get_height()/2, 
-            f'{val}', va='center', fontsize=9, color='#1a5f4a', fontweight='bold')
 """
 }
 

@@ -12,7 +12,7 @@ st.set_page_config(
     page_title="DataViz Assistant",
     page_icon="📊",
     layout="wide",
-    initial_sidebar_state="expanded"
+    initial_sidebar_state="collapsed"
 )
 
 # ============================================
@@ -73,40 +73,12 @@ st.markdown("""
         50% { opacity: 0.5; }
     }
     
-    /* Quick suggestion pills */
-    .suggestion-container {
-        display: flex;
-        gap: 0.5rem;
-        flex-wrap: wrap;
-        margin: 1rem 0;
-    }
-    
-    .suggestion-pill {
-        background: white;
-        border: 1px solid #1a5f4a;
-        color: #1a5f4a;
-        padding: 0.5rem 1rem;
-        border-radius: 20px;
-        font-size: 0.85rem;
-        cursor: pointer;
-        transition: all 0.2s;
-        white-space: nowrap;
-        overflow: hidden;
-        text-overflow: ellipsis;
-        max-width: 200px;
-    }
-    
-    .suggestion-pill:hover {
-        background: #1a5f4a;
-        color: white;
-    }
-    
     /* Section headers */
     .section-header {
         color: #1a5f4a;
-        font-size: 0.9rem;
+        font-size: 1rem;
         font-weight: 600;
-        margin-bottom: 0.5rem;
+        margin: 1rem 0 0.5rem 0;
         display: flex;
         align-items: center;
         gap: 0.5rem;
@@ -114,7 +86,8 @@ st.markdown("""
     
     .section-subtext {
         color: #666;
-        font-size: 0.8rem;
+        font-size: 0.85rem;
+        font-weight: 400;
     }
     
     /* File chip */
@@ -146,12 +119,14 @@ st.markdown("""
         border-radius: 10px;
         padding: 1rem;
         border-left: 3px solid #1a5f4a;
+        margin-bottom: 1rem;
     }
     
     .notes-title {
         color: #1a5f4a;
         font-weight: 600;
         margin-bottom: 0.5rem;
+        font-size: 0.95rem;
     }
     
     .clarification-box {
@@ -168,117 +143,128 @@ st.markdown("""
         align-items: center;
         gap: 0.3rem;
         margin-bottom: 0.5rem;
+        font-size: 0.9rem;
     }
     
-    /* Data table styling */
-    .dataframe-container {
-        border: 1px solid #e0e0e0;
-        border-radius: 10px;
-        overflow: hidden;
-        margin: 1rem 0;
+    /* Button styling - for suggestion pills */
+    div[data-testid="column"] .stButton > button {
+        background: linear-gradient(135deg, #1a5f4a 0%, #2d8a6e 100%);
+        color: white;
+        border: none;
+        border-radius: 12px;
+        padding: 0.75rem 1rem;
+        font-weight: 500;
+        font-size: 0.85rem;
+        transition: all 0.3s;
+        width: 100%;
+        min-height: 80px;
+        white-space: normal;
+        line-height: 1.3;
     }
     
-    /* Button styling */
-    .stButton > button {
+    div[data-testid="column"] .stButton > button:hover {
+        background: linear-gradient(135deg, #0d3025 0%, #1a5f4a 100%);
+        box-shadow: 0 4px 15px rgba(26, 95, 74, 0.4);
+        transform: translateY(-2px);
+    }
+    
+    /* Primary action button */
+    .stButton > button[kind="primary"] {
         background: linear-gradient(135deg, #1a5f4a 0%, #2d8a6e 100%);
         color: white;
         border: none;
         border-radius: 8px;
-        padding: 0.5rem 1.5rem;
+        padding: 0.6rem 1.5rem;
         font-weight: 500;
-        transition: all 0.2s;
     }
     
-    .stButton > button:hover {
+    .stButton > button[kind="primary"]:hover {
         background: linear-gradient(135deg, #0d3025 0%, #1a5f4a 100%);
         box-shadow: 0 4px 12px rgba(26, 95, 74, 0.3);
     }
     
     /* Tab styling */
     .stTabs [data-baseweb="tab-list"] {
-        gap: 2rem;
+        gap: 0;
         border-bottom: 2px solid #e0e0e0;
     }
     
     .stTabs [data-baseweb="tab"] {
         color: #666;
         font-weight: 500;
+        padding: 0.75rem 1.5rem;
+        border-bottom: 2px solid transparent;
+        margin-bottom: -2px;
     }
     
     .stTabs [aria-selected="true"] {
         color: #1a5f4a;
         border-bottom: 2px solid #1a5f4a;
+        background: transparent;
     }
     
-    /* Chat input styling */
-    .chat-container {
-        position: fixed;
-        bottom: 0;
-        left: 0;
-        right: 0;
+    /* Chart container */
+    .chart-container {
         background: white;
+        border-radius: 12px;
         padding: 1rem;
-        border-top: 1px solid #e0e0e0;
-        box-shadow: 0 -4px 12px rgba(0,0,0,0.05);
+        box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+        margin-top: 1rem;
     }
     
-    /* Metric cards */
-    .metric-card {
-        background: white;
-        border: 1px solid #e0e0e0;
-        border-radius: 10px;
+    /* Question display */
+    .current-question {
+        background: linear-gradient(135deg, #e8f5f0 0%, #d4ede5 100%);
+        border-left: 4px solid #1a5f4a;
         padding: 1rem;
-        text-align: center;
+        border-radius: 0 8px 8px 0;
+        margin: 1rem 0;
+        font-size: 1rem;
+        color: #0d3025;
     }
     
-    .metric-value {
-        font-size: 1.5rem;
-        font-weight: 700;
-        color: #1a5f4a;
-    }
-    
-    .metric-label {
-        color: #666;
-        font-size: 0.85rem;
-    }
-    
-    /* Hide default streamlit elements */
+    /* Hide default elements */
     #MainMenu {visibility: hidden;}
     footer {visibility: hidden;}
     
-    /* Sidebar styling */
-    [data-testid="stSidebar"] {
-        background: #f8faf9;
+    /* Dataframe styling */
+    .stDataFrame {
+        border-radius: 10px;
+        overflow: hidden;
     }
     
-    [data-testid="stSidebar"] [data-testid="stMarkdownContainer"] h1 {
+    /* Text input styling */
+    .stTextArea textarea, .stTextInput input {
+        border: 2px solid #e0e0e0;
+        border-radius: 8px;
+    }
+    
+    .stTextArea textarea:focus, .stTextInput input:focus {
+        border-color: #1a5f4a;
+        box-shadow: 0 0 0 1px #1a5f4a;
+    }
+    
+    /* Metric styling */
+    [data-testid="stMetricValue"] {
+        color: #1a5f4a;
+        font-weight: 700;
+    }
+    
+    /* Expander styling */
+    .streamlit-expanderHeader {
+        color: #1a5f4a;
+        font-weight: 500;
+    }
+    
+    /* Success/info message styling */
+    .stSuccess {
+        background-color: #e8f5f0;
         color: #1a5f4a;
     }
     
-    /* Radio button styling */
-    .stRadio > div {
-        display: flex;
-        flex-direction: column;
-        gap: 0.5rem;
-    }
-    
-    .stRadio > div > label {
-        background: white;
-        border: 1px solid #e0e0e0;
-        border-radius: 8px;
-        padding: 0.75rem 1rem;
-        cursor: pointer;
-        transition: all 0.2s;
-    }
-    
-    .stRadio > div > label:hover {
-        border-color: #1a5f4a;
-        background: #f8faf9;
-    }
-    
-    .stRadio > div > label[data-checked="true"] {
-        border-color: #1a5f4a;
-        background: #e8f5f0;
+    /* Spinner */
+    .stSpinner > div {
+        border-top-color: #1a5f4a !important;
     }
 </style>
 """, unsafe_allow_html=True)
@@ -290,10 +276,12 @@ if 'admin_mode' not in st.session_state:
     st.session_state.admin_mode = False
 if 'webhook_url' not in st.session_state:
     st.session_state.webhook_url = ""
-if 'selected_question' not in st.session_state:
-    st.session_state.selected_question = None
-if 'current_chart' not in st.session_state:
-    st.session_state.current_chart = None
+if 'current_question' not in st.session_state:
+    st.session_state.current_question = None
+if 'current_code_key' not in st.session_state:
+    st.session_state.current_code_key = None
+if 'show_chart' not in st.session_state:
+    st.session_state.show_chart = False
 
 # ============================================
 # DATASET CONFIGURATION
@@ -301,7 +289,7 @@ if 'current_chart' not in st.session_state:
 DATASETS = {
     "HDB Resale Prices (Singapore)": {
         "file_id": "1HUK7Way3F4LUpgh6vA9I7UeBNHLU0khR",
-        "description": "Singapore HDB resale flat transactions from 1990, focusing on approvals in 1990-1999. Each row records a specific flat listing with attributes like town, flat type, block, street, storey range, floor area, flat model, lease start year, and the resale price.",
+        "description": "Singapore HDB resale flat transactions from 1990, focusing on approvals in 1990-1999. Each row records a specific flat listing with attributes like town, flat type, block, street, storey range, floor area, flat model, lease start year, and the resale price. It can be used to analyze price patterns by location, flat type/model, size, and age of the flat, and to track trends over time.",
         "icon": "🏠",
         "questions": [
             {"category": "Trends Analysis", "question": "How have resale prices changed over the years?", "code_key": "hdb_price_trend"},
@@ -313,7 +301,7 @@ DATASETS = {
     },
     "Airbnb Listings (New Zealand)": {
         "file_id": "1W-peKALdxBzOHx_muetYIz_2Bb9Vg9Gh",
-        "description": "New Zealand Airbnb property listings with details on room types, pricing, availability, reviews, and host information. Useful for analyzing pricing patterns, popular areas, and host behaviors.",
+        "description": "New Zealand Airbnb property listings with details on room types, pricing, availability, reviews, and host information. Useful for analyzing pricing patterns, popular areas, and host behaviors in the NZ vacation rental market.",
         "icon": "🏡",
         "questions": [
             {"category": "Pricing Analysis", "question": "What is the average price by room type?", "code_key": "airbnb_room_price"},
@@ -400,7 +388,7 @@ ax.spines['right'].set_visible(False)
 
 ax.text(0.05, 0.95, 'Newer leases → Higher prices', transform=ax.transAxes, 
         fontsize=10, verticalalignment='top', style='italic', color='#1a5f4a',
-        bbox=dict(boxstyle='round', facecolor='#e8f5f0', alpha=0.8))
+        bbox=dict(boxstyle='round', facecolor='#e8f5f0', alpha=0.8, edgecolor='#1a5f4a'))
 """,
     
     "hdb_flattype_years": """
@@ -412,7 +400,7 @@ df_filtered = df[df['flat_type'].isin(top_flat_types)]
 
 pivot = df_filtered.groupby(['year', 'flat_type'])['resale_price'].mean().reset_index()
 
-palette = sns.color_palette("Greens_d", len(top_flat_types))
+palette = ['#0d3025', '#1a5f4a', '#2d8a6e', '#4ecca3', '#a8e6cf']
 sns.lineplot(data=pivot, x='year', y='resale_price', hue='flat_type', 
              marker='o', linewidth=2, palette=palette, ax=ax)
 
@@ -473,7 +461,10 @@ if availability_col:
     ax.spines['top'].set_visible(False)
     ax.spines['right'].set_visible(False)
 else:
-    ax.text(0.5, 0.5, 'Availability column not found', ha='center', va='center', transform=ax.transAxes, fontsize=12, color='#1a5f4a')
+    ax.text(0.5, 0.5, 'Availability column not found', ha='center', va='center', 
+            transform=ax.transAxes, fontsize=14, color='#1a5f4a')
+    ax.set_frame_on(False)
+    ax.tick_params(left=False, bottom=False, labelleft=False, labelbottom=False)
 """,
     
     "airbnb_reviews_price": """
@@ -493,7 +484,7 @@ ax.spines['right'].set_visible(False)
 corr = sample[['number_of_reviews', 'price']].corr().iloc[0,1]
 ax.text(0.95, 0.95, f'Correlation: {corr:.3f}', transform=ax.transAxes, 
         fontsize=11, ha='right', va='top', color='#1a5f4a',
-        bbox=dict(boxstyle='round', facecolor='#e8f5f0', alpha=0.8))
+        bbox=dict(boxstyle='round', facecolor='#e8f5f0', alpha=0.8, edgecolor='#1a5f4a'))
 """,
     
     "airbnb_top_hosts": """
@@ -509,7 +500,7 @@ host_counts = host_counts.sort_values(ascending=True)
 colors = sns.color_palette("Greens", len(host_counts))
 bars = ax.barh(range(len(host_counts)), host_counts.values, color=colors)
 ax.set_yticks(range(len(host_counts)))
-ax.set_yticklabels(host_counts.index.astype(str), fontsize=9)
+ax.set_yticklabels([str(x)[:20] + '...' if len(str(x)) > 20 else str(x) for x in host_counts.index], fontsize=9)
 ax.set_xlabel('Number of Listings', fontsize=12)
 ax.set_ylabel('Host', fontsize=12)
 ax.set_title('Top 15 Hosts with Most Listings', fontsize=14, fontweight='bold', color='#0d3025')
@@ -518,7 +509,7 @@ ax.spines['right'].set_visible(False)
 
 for bar, val in zip(bars, host_counts.values):
     ax.text(val + 0.5, bar.get_y() + bar.get_height()/2, 
-            f'{val}', va='center', fontsize=9, color='#1a5f4a')
+            f'{val}', va='center', fontsize=9, color='#1a5f4a', fontweight='bold')
 """
 }
 
@@ -531,6 +522,8 @@ plt.rcParams['font.size'] = 11
 plt.rcParams['axes.titleweight'] = 'bold'
 plt.rcParams['axes.labelcolor'] = '#0d3025'
 plt.rcParams['text.color'] = '#0d3025'
+plt.rcParams['figure.facecolor'] = 'white'
+plt.rcParams['axes.facecolor'] = 'white'
 
 # ============================================
 # LOAD DATA
@@ -598,7 +591,7 @@ def render_admin_page():
         "Webhook URL",
         value=st.session_state.webhook_url,
         type="password",
-        help="Enter your Make.com webhook URL for AI-powered features"
+        help="Enter your Make.com webhook URL for AI-powered custom questions"
     )
     
     if st.button("💾 Save Configuration", type="primary"):
@@ -610,9 +603,9 @@ def render_admin_page():
     st.subheader("📊 Status")
     
     if st.session_state.webhook_url:
-        st.success("✅ Make.com webhook configured")
+        st.success("✅ Make.com webhook configured - Custom questions enabled")
     else:
-        st.info("ℹ️ Running in Demo Mode")
+        st.info("ℹ️ Running in Demo Mode - Pre-built visualizations only")
     
     st.markdown("---")
     
@@ -620,7 +613,7 @@ def render_admin_page():
     
     for name, info in DATASETS.items():
         with st.expander(f"{info['icon']} {name}"):
-            st.write(f"**Description:** {info['description']}")
+            st.write(f"**Description:** {info['description'][:200]}...")
             st.write(f"**Questions:** {len(info['questions'])}")
 
 # ============================================
@@ -635,134 +628,167 @@ def render_main_app():
     </div>
     """, unsafe_allow_html=True)
     
-    # Main layout with sidebar for notes
+    # Dataset selector at top
+    dataset_options = list(DATASETS.keys())
+    selected_dataset = st.selectbox(
+        "Select Dataset",
+        options=dataset_options,
+        format_func=lambda x: f"{DATASETS[x]['icon']} {x}",
+        label_visibility="collapsed"
+    )
+    
+    dataset_config = DATASETS[selected_dataset]
+    file_id = dataset_config["file_id"]
+    
+    # Load data
+    with st.spinner("Loading data..."):
+        df, error = load_dataset(file_id)
+    
+    if error:
+        st.error(f"❌ Failed to load data: {error}")
+        st.stop()
+    
+    # Main layout with notes panel on the right
     main_col, notes_col = st.columns([3, 1])
     
     with main_col:
-        # Dataset selector
-        dataset_options = list(DATASETS.keys())
-        selected_dataset = st.selectbox(
-            "Select Dataset",
-            options=dataset_options,
-            format_func=lambda x: f"{DATASETS[x]['icon']} {x}",
-            label_visibility="collapsed"
-        )
-        
-        dataset_config = DATASETS[selected_dataset]
-        file_id = dataset_config["file_id"]
-        
-        # Load data
-        with st.spinner("Loading data..."):
-            df, error = load_dataset(file_id)
-        
-        if error:
-            st.error(f"❌ Failed to load data: {error}")
-            st.stop()
-        
-        # Tabs like Julius
-        tab_overview, tab_charts = st.tabs(["📋 Overview", "📈 Charts"])
+        # Tabs
+        tab_overview, tab_ask = st.tabs(["📋 Overview", "💬 Ask Your Own Question"])
         
         with tab_overview:
-            # Quick Plot Suggestions
-            st.markdown(f"""
-            <div class="section-header">
-                Quick Plot Suggestions
-                <span class="section-subtext">{len(dataset_config['questions'])} suggestions available</span>
-            </div>
-            """, unsafe_allow_html=True)
-            
-            # Suggestion pills in columns
-            cols = st.columns(len(dataset_config['questions']))
-            for i, (col, q) in enumerate(zip(cols, dataset_config['questions'])):
-                with col:
-                    if st.button(q['question'][:30] + "..." if len(q['question']) > 30 else q['question'], 
-                                key=f"quick_{i}", use_container_width=True):
-                        st.session_state.selected_question = q
-            
-            st.markdown("<br>", unsafe_allow_html=True)
-            
-            # Data table
+            # Data Preview Section
             st.markdown("""
             <div class="section-header">
                 📄 Data Preview
             </div>
             """, unsafe_allow_html=True)
             
-            st.dataframe(df.head(100), use_container_width=True, height=300)
+            st.dataframe(df.head(50), use_container_width=True, height=250)
             
             # File chip
-            file_size = len(df) * len(df.columns) * 8 / (1024 * 1024)  # Rough estimate in MB
+            file_size = len(df) * len(df.columns) * 8 / (1024 * 1024)
             st.markdown(f"""
             <div class="file-chip">
                 <span class="file-chip-icon">📄</span>
                 <span>{selected_dataset.split('(')[0].strip()}</span>
-                <span class="file-chip-size">• {len(df):,} rows • {file_size:.1f} MB</span>
+                <span class="file-chip-size">• {len(df):,} rows • ~{file_size:.1f} MB</span>
             </div>
             """, unsafe_allow_html=True)
-        
-        with tab_charts:
-            st.markdown("""
+            
+            st.markdown("<br>", unsafe_allow_html=True)
+            
+            # Quick Plot Suggestions
+            st.markdown(f"""
             <div class="section-header">
-                Select a Question to Visualize
+                ⚡ Quick Plot Suggestions
+                <span class="section-subtext">{len(dataset_config['questions'])} suggestions available</span>
             </div>
             """, unsafe_allow_html=True)
             
-            # Question selection
-            question_options = [f"({q['category']}) {q['question']}" for q in dataset_config['questions']]
-            selected_idx = st.radio(
-                "Choose a question:",
-                options=range(len(question_options)),
-                format_func=lambda x: question_options[x],
-                label_visibility="collapsed"
-            )
+            st.caption("Click any suggestion to instantly generate the visualization")
             
-            selected_q = dataset_config['questions'][selected_idx]
+            # Suggestion buttons in columns
+            cols = st.columns(len(dataset_config['questions']))
+            for i, (col, q) in enumerate(zip(cols, dataset_config['questions'])):
+                with col:
+                    btn_label = q['question']
+                    if len(btn_label) > 35:
+                        btn_label = btn_label[:35] + "..."
+                    
+                    if st.button(btn_label, key=f"suggestion_{i}", use_container_width=True):
+                        st.session_state.current_question = q['question']
+                        st.session_state.current_code_key = q['code_key']
+                        st.session_state.show_chart = True
             
-            if st.button("🎨 Generate Visualization", type="primary", use_container_width=True):
-                with st.spinner("Creating visualization..."):
-                    code = get_viz_code(selected_q['code_key'])
+            # Show chart if a suggestion was clicked
+            if st.session_state.show_chart and st.session_state.current_code_key:
+                st.markdown(f"""
+                <div class="current-question">
+                    🤔 <strong>{st.session_state.current_question}</strong>
+                </div>
+                """, unsafe_allow_html=True)
+                
+                with st.spinner("Generating visualization..."):
+                    code = get_viz_code(st.session_state.current_code_key)
                     fig, exec_error = execute_viz_code(code, df)
                     
                     if exec_error:
-                        st.error(f"Error: {exec_error}")
+                        st.error(f"❌ Error: {exec_error}")
                     else:
                         st.pyplot(fig)
                         plt.close(fig)
                         
-                        with st.expander("💻 View Code"):
+                        with st.expander("💻 View Generated Code"):
                             st.code(code, language="python")
+        
+        with tab_ask:
+            st.markdown("""
+            <div class="section-header">
+                💬 Ask Your Own Question
+            </div>
+            """, unsafe_allow_html=True)
+            
+            st.markdown("Type your question about the data and get a custom visualization.")
+            
+            user_question = st.text_area(
+                "Your question:",
+                placeholder="e.g., What is the average price by location? Show me the trend over time...",
+                height=100,
+                label_visibility="collapsed"
+            )
+            
+            if st.session_state.webhook_url:
+                if st.button("🎨 Generate Visualization", type="primary", disabled=not user_question):
+                    with st.spinner("AI is analyzing your question..."):
+                        # TODO: Call Make.com webhook here
+                        st.info("🚧 Custom question feature coming soon! For now, please use the Quick Plot Suggestions.")
+            else:
+                st.warning("⚠️ To use custom questions, please configure the Make.com webhook in Admin Settings.")
+                st.caption("Click the ⚙️ button at the bottom right to access Admin Settings.")
+            
+            st.markdown("---")
+            
+            st.markdown("**💡 Sample questions you could ask:**")
+            for q in dataset_config['questions'][:3]:
+                st.markdown(f"- {q['question']}")
     
     with notes_col:
-        # Notes panel like Julius
+        # Notes Panel
         st.markdown("""
         <div class="notes-panel">
             <div class="notes-title">📝 Notes</div>
-            <p style="font-size: 0.85rem; color: #666;">Preliminary information about your data</p>
+            <p style="font-size: 0.8rem; color: #666; margin: 0;">Preliminary information about your dataset</p>
         </div>
         """, unsafe_allow_html=True)
-        
-        st.markdown("<br>", unsafe_allow_html=True)
         
         # Clarification box
         st.markdown(f"""
         <div class="clarification-box">
             <div class="clarification-status">✅ File Loaded</div>
-            <p style="font-size: 0.85rem; color: #333; line-height: 1.5;">
-                {dataset_config['description']}
+            <p style="font-size: 0.8rem; color: #333; line-height: 1.5; margin: 0;">
+                {dataset_config['description'][:300]}{'...' if len(dataset_config['description']) > 300 else ''}
             </p>
         </div>
         """, unsafe_allow_html=True)
         
         st.markdown("<br>", unsafe_allow_html=True)
         
-        # Metrics
+        # Quick Stats
         st.markdown("""
         <div class="notes-title">📊 Quick Stats</div>
         """, unsafe_allow_html=True)
         
         st.metric("Total Records", f"{len(df):,}")
         st.metric("Columns", len(df.columns))
-        st.metric("Numeric Fields", len(df.select_dtypes(include=['int64', 'float64']).columns))
+        
+        numeric_cols = df.select_dtypes(include=['int64', 'float64']).columns
+        st.metric("Numeric Fields", len(numeric_cols))
+        
+        # Column list
+        with st.expander("📋 View All Columns"):
+            for col in df.columns:
+                dtype = str(df[col].dtype)
+                st.caption(f"• {col} ({dtype})")
     
     # Footer with admin link
     st.markdown("---")
@@ -772,7 +798,7 @@ def render_main_app():
         st.caption("Built with Streamlit • Powered by AI • Data Analytics Made Simple")
     
     with footer_cols[1]:
-        if st.button("⚙️", help="Admin", key="admin_btn"):
+        if st.button("⚙️", help="Admin Settings", key="admin_btn"):
             st.session_state.admin_mode = True
             st.rerun()
 

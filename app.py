@@ -15,8 +15,15 @@ st.set_page_config(
 )
 
 # ============================================
+# SESSION STATE INIT
+# ============================================
+if 'admin_mode' not in st.session_state:
+    st.session_state.admin_mode = False
+if 'webhook_url' not in st.session_state:
+    st.session_state.webhook_url = ""
+
+# ============================================
 # DATASET CONFIGURATION
-# Add new datasets here easily!
 # ============================================
 DATASETS = {
     "HDB Resale Prices (Singapore)": {
@@ -29,12 +36,6 @@ DATASETS = {
         "description": "New Zealand Airbnb property listings",
         "icon": "🏡"
     }
-    # ADD MORE DATASETS HERE:
-    # "Dataset Name": {
-    #     "file_id": "your_google_drive_file_id",
-    #     "description": "Brief description",
-    #     "icon": "emoji"
-    # }
 }
 
 # ============================================
@@ -45,7 +46,7 @@ plt.rcParams['figure.figsize'] = [10, 6]
 plt.rcParams['font.size'] = 12
 
 # ============================================
-# LOAD DATA (cached for performance)
+# LOAD DATA
 # ============================================
 @st.cache_data(ttl=3600)
 def load_dataset(file_id):
@@ -54,7 +55,6 @@ def load_dataset(file_id):
     
     try:
         df = pd.read_csv(url)
-        # Clean column names - lowercase, replace spaces with underscores
         df.columns = df.columns.str.strip().str.lower().str.replace(' ', '_').str.replace('-', '_')
         return df, None
     except Exception as e:
@@ -65,13 +65,10 @@ def load_dataset(file_id):
 # ============================================
 def analyze_dataset(df):
     """Analyze dataset and return structured info"""
-    
-    # Identify column types
     numeric_cols = df.select_dtypes(include=['int64', 'float64']).columns.tolist()
     categorical_cols = df.select_dtypes(include=['object']).columns.tolist()
     datetime_cols = df.select_dtypes(include=['datetime64']).columns.tolist()
     
-    # Try to detect date columns stored as strings
     for col in categorical_cols:
         sample = df[col].dropna().iloc[0] if len(df[col].dropna()) > 0 else ""
         if isinstance(sample, str) and any(x in sample for x in ['-', '/']) and len(sample) <= 10:
@@ -94,7 +91,6 @@ def analyze_dataset(df):
 # ============================================
 def get_data_summary(df, dataset_name):
     """Create a concise summary for the LLM"""
-    
     analysis = analyze_dataset(df)
     
     summary = f"""
@@ -163,39 +159,33 @@ def execute_viz_code(code, df):
         return None, str(e)
 
 # ============================================
-# DEMO MODE: Generate smart questions based on data
+# DEMO MODE: Generate smart questions
 # ============================================
 def generate_smart_questions(df, dataset_name):
     """Generate relevant questions based on actual dataset structure"""
-    
     analysis = analyze_dataset(df)
     questions = []
     
     numeric_cols = analysis['numeric']
     categorical_cols = analysis['categorical']
     
-    # Pattern 1: Distribution of main numeric column
     if numeric_cols:
         main_numeric = numeric_cols[0]
         questions.append(f"What is the distribution of {main_numeric.replace('_', ' ')}?")
     
-    # Pattern 2: Average numeric by category
     if numeric_cols and categorical_cols:
         questions.append(f"What is the average {numeric_cols[0].replace('_', ' ')} by {categorical_cols[0].replace('_', ' ')}?")
     
-    # Pattern 3: Top categories
     if categorical_cols and numeric_cols:
         questions.append(f"Which {categorical_cols[0].replace('_', ' ')} has the highest {numeric_cols[0].replace('_', ' ')}?")
     
-    # Pattern 4: Correlation (if multiple numeric)
     if len(numeric_cols) >= 2:
         questions.append(f"What is the relationship between {numeric_cols[0].replace('_', ' ')} and {numeric_cols[1].replace('_', ' ')}?")
     
-    # Pattern 5: Category distribution
     if categorical_cols:
         questions.append(f"What is the distribution of {categorical_cols[0].replace('_', ' ')}?")
     
-    return questions[:5]  # Return max 5 questions
+    return questions[:5]
 
 # ============================================
 # DEMO MODE: Generate visualization code
@@ -208,8 +198,6 @@ def generate_demo_code(question, df):
     categorical_cols = analysis['categorical']
     
     question_lower = question.lower()
-    
-    # Detect what type of visualization is needed
     
     # DISTRIBUTION of numeric
     if "distribution" in question_lower and numeric_cols:
@@ -227,7 +215,6 @@ ax.set_xlabel('{target_col.replace('_', ' ').title()}', fontsize=12)
 ax.set_ylabel('Count', fontsize=12)
 ax.set_title('Distribution of {target_col.replace('_', ' ').title()}', fontsize=14, fontweight='bold')
 
-# Add median line
 median_val = df['{target_col}'].median()
 ax.axvline(median_val, color='red', linestyle='--', linewidth=2, label=f'Median: {{median_val:,.2f}}')
 ax.legend()
@@ -235,7 +222,6 @@ ax.legend()
     
     # AVERAGE by category
     if "average" in question_lower and numeric_cols and categorical_cols:
-        # Find which columns are mentioned
         target_numeric = numeric_cols[0]
         target_cat = categorical_cols[0]
         
@@ -253,7 +239,6 @@ ax.legend()
 # Average {target_numeric} by {target_cat}
 grouped = df.groupby('{target_cat}')['{target_numeric}'].mean().sort_values(ascending=True)
 
-# Limit to top 20 if too many categories
 if len(grouped) > 20:
     grouped = grouped.tail(20)
 
@@ -314,13 +299,12 @@ ax.set_xlabel('{col1.replace('_', ' ').title()}', fontsize=12)
 ax.set_ylabel('{col2.replace('_', ' ').title()}', fontsize=12)
 ax.set_title('Relationship: {col1.replace('_', ' ').title()} vs {col2.replace('_', ' ').title()}', fontsize=14, fontweight='bold')
 
-# Add correlation coefficient
 corr = df[['{col1}', '{col2}']].corr().iloc[0,1]
 ax.text(0.05, 0.95, f'Correlation: {{corr:.3f}}', transform=ax.transAxes, fontsize=12,
         verticalalignment='top', bbox=dict(boxstyle='round', facecolor='wheat', alpha=0.5))
 """
     
-    # CATEGORY DISTRIBUTION (pie/bar)
+    # CATEGORY DISTRIBUTION
     if "distribution" in question_lower and categorical_cols:
         target_cat = categorical_cols[0]
         
@@ -341,13 +325,12 @@ ax.set_xlabel('{target_cat.replace('_', ' ').title()}', fontsize=12)
 ax.set_ylabel('Count', fontsize=12)
 ax.set_title('Distribution of {target_cat.replace('_', ' ').title()}', fontsize=14, fontweight='bold')
 
-# Add count labels
 for i, (bar, val) in enumerate(zip(bars, counts.values)):
     ax.text(bar.get_x() + bar.get_width()/2., bar.get_height(),
             f'{{val:,}}', ha='center', va='bottom', fontsize=9)
 """
     
-    # DEFAULT: First numeric column distribution
+    # DEFAULT
     if numeric_cols:
         col = numeric_cols[0]
         return f"""
@@ -358,7 +341,6 @@ ax.set_ylabel('Count', fontsize=12)
 ax.set_title('Distribution of {col.replace('_', ' ').title()}', fontsize=14, fontweight='bold')
 """
     
-    # FALLBACK: Just show value counts of first categorical
     if categorical_cols:
         col = categorical_cols[0]
         return f"""
@@ -372,35 +354,70 @@ ax.set_title('{col.replace('_', ' ').title()} Breakdown', fontsize=14, fontweigh
 
     return "ax.text(0.5, 0.5, 'Unable to generate visualization', ha='center', va='center', transform=ax.transAxes)"
 
+
 # ============================================
-# MAIN APP
+# ADMIN PAGE
 # ============================================
-def main():
+def render_admin_page():
+    """Render the admin configuration page"""
+    st.title("⚙️ Admin Settings")
+    
+    st.markdown("---")
+    
+    # Back to main app link
+    if st.button("← Back to Main App"):
+        st.session_state.admin_mode = False
+        st.rerun()
+    
+    st.markdown("---")
+    
+    st.header("🔗 Make.com Configuration")
+    
+    webhook_input = st.text_input(
+        "Make.com Webhook URL",
+        value=st.session_state.webhook_url,
+        type="password",
+        help="Enter your Make.com webhook URL for AI-powered features"
+    )
+    
+    if st.button("💾 Save Configuration", type="primary"):
+        st.session_state.webhook_url = webhook_input
+        st.success("✅ Configuration saved!")
+    
+    st.markdown("---")
+    
+    # Status display
+    st.header("📊 Current Status")
+    
+    if st.session_state.webhook_url:
+        st.success("✅ Make.com webhook configured")
+        st.code(st.session_state.webhook_url[:20] + "..." if len(st.session_state.webhook_url) > 20 else st.session_state.webhook_url)
+    else:
+        st.warning("⚠️ No webhook configured - running in Demo Mode")
+    
+    st.markdown("---")
+    
+    # Dataset info
+    st.header("📁 Configured Datasets")
+    
+    for name, info in DATASETS.items():
+        with st.expander(f"{info['icon']} {name}"):
+            st.write(f"**Description:** {info['description']}")
+            st.write(f"**File ID:** `{info['file_id']}`")
+    
+    st.markdown("---")
+    st.caption("Admin Settings • DataViz Assistant")
+
+
+# ============================================
+# MAIN APP PAGE
+# ============================================
+def render_main_app():
+    """Render the main application page"""
+    
     # Header
     st.title("📊 DataViz Assistant")
     st.markdown("*Select a dataset, ask questions, get beautiful visualizations*")
-    
-    # ============================================
-    # SIDEBAR
-    # ============================================
-    with st.sidebar:
-        st.header("⚙️ Configuration")
-        
-        # Make.com webhook URL (optional)
-        webhook_url = st.text_input(
-            "Make.com Webhook URL (optional)",
-            type="password",
-            help="Leave empty for Demo Mode"
-        )
-        
-        if not webhook_url:
-            st.info("🎮 Running in Demo Mode")
-        
-        st.markdown("---")
-        st.markdown("### 📁 Available Datasets")
-        for name, info in DATASETS.items():
-            st.markdown(f"{info['icon']} **{name}**")
-            st.caption(info['description'])
     
     # ============================================
     # STEP 1: SELECT DATASET
@@ -424,7 +441,6 @@ def main():
         st.error(f"❌ Failed to load data: {error}")
         st.stop()
     
-    # Success message
     st.success(f"✅ Loaded **{len(df):,}** records from {selected_dataset}")
     
     # Data preview
@@ -446,23 +462,20 @@ def main():
     st.markdown("---")
     
     # ============================================
-    # STEP 2: SELECT OR ASK QUESTION
+    # STEP 2: SELECT QUESTION
     # ============================================
     st.header("🤔 Step 2: Choose a Question")
     
-    # Generate smart questions based on THIS dataset
     suggested_questions = generate_smart_questions(df, selected_dataset)
     
     st.markdown("**Suggested questions for this dataset:**")
     
-    # Radio buttons for suggested questions
     question_choice = st.radio(
         "Select a question:",
         options=suggested_questions + ["✍️ Ask my own question..."],
         label_visibility="collapsed"
     )
     
-    # Custom question input
     if question_choice == "✍️ Ask my own question...":
         selected_question = st.text_input(
             "Type your question:",
@@ -481,7 +494,7 @@ def main():
     if st.button("🎨 Generate Chart", type="primary", disabled=not selected_question):
         with st.spinner("Creating your visualization..."):
             
-            if webhook_url:
+            if st.session_state.webhook_url:
                 # Use Make.com for AI-generated code
                 data_summary = get_data_summary(df, selected_dataset)
                 
@@ -494,7 +507,7 @@ def main():
                     "categorical_columns": analyze_dataset(df)['categorical']
                 }
                 
-                code, error = call_makecom_webhook(webhook_url, payload)
+                code, error = call_makecom_webhook(st.session_state.webhook_url, payload)
                 
                 if error:
                     st.error(f"Webhook error: {error}")
@@ -521,10 +534,38 @@ def main():
                 st.success("✅ Visualization generated!")
     
     # ============================================
-    # FOOTER
+    # FOOTER WITH SUBTLE ADMIN LINK
     # ============================================
     st.markdown("---")
-    st.caption("Built with Streamlit • Data from Google Drive • AI-powered analysis")
+    
+    # Create footer with admin link on the right
+    footer_cols = st.columns([8, 1])
+    
+    with footer_cols[0]:
+        st.caption("Built with Streamlit • Data from Google Drive • AI-powered analysis")
+    
+    with footer_cols[1]:
+        # Small, subtle admin link
+        if st.button("⚙️", help="Admin Settings", key="admin_btn"):
+            st.session_state.admin_mode = True
+            st.rerun()
+
+
+# ============================================
+# MAIN ROUTER
+# ============================================
+def main():
+    # Check URL parameter for admin access
+    query_params = st.query_params
+    if query_params.get("admin") == "true":
+        st.session_state.admin_mode = True
+    
+    # Route to appropriate page
+    if st.session_state.admin_mode:
+        render_admin_page()
+    else:
+        render_main_app()
+
 
 # ============================================
 # RUN

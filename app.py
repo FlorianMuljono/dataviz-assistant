@@ -415,7 +415,10 @@ ax.spines['right'].set_visible(False)
 
     "airbnb_room_price": """
 # Average Price by Room Type
-room_avg = df.groupby('room_type')['price'].mean().sort_values(ascending=True)
+# Clean price column - remove $ and commas, convert to numeric
+df['price_clean'] = pd.to_numeric(df['price'].astype(str).str.replace('$', '').str.replace(',', ''), errors='coerce')
+
+room_avg = df.groupby('room_type')['price_clean'].mean().sort_values(ascending=True)
 
 colors = sns.color_palette("Greens", len(room_avg))
 bars = ax.barh(room_avg.index, room_avg.values, color=colors)
@@ -433,7 +436,10 @@ for bar, val in zip(bars, room_avg.values):
     
     "airbnb_area_price": """
 # Top 15 Areas by Average Price
-area_avg = df.groupby('neighbourhood')['price'].mean().sort_values(ascending=False).head(15)
+# Clean price column - remove $ and commas, convert to numeric
+df['price_clean'] = pd.to_numeric(df['price'].astype(str).str.replace('$', '').str.replace(',', ''), errors='coerce')
+
+area_avg = df.groupby('neighbourhood')['price_clean'].mean().sort_values(ascending=False).head(15)
 area_avg = area_avg.sort_values(ascending=True)
 
 colors = sns.color_palette("Greens", len(area_avg))
@@ -469,9 +475,12 @@ else:
     
     "airbnb_reviews_price": """
 # Relationship between Reviews and Price
-sample = df.sample(n=min(3000, len(df)), random_state=42)
+# Clean price column - remove $ and commas, convert to numeric
+df['price_clean'] = pd.to_numeric(df['price'].astype(str).str.replace('$', '').str.replace(',', ''), errors='coerce')
 
-sns.scatterplot(data=sample, x='number_of_reviews', y='price', 
+sample = df.dropna(subset=['price_clean', 'number_of_reviews']).sample(n=min(3000, len(df)), random_state=42)
+
+sns.scatterplot(data=sample, x='number_of_reviews', y='price_clean', 
                 alpha=0.5, s=30, color='#4ecca3', ax=ax)
                 
 ax.set_xlabel('Number of Reviews', fontsize=12)
@@ -481,7 +490,7 @@ ax.yaxis.set_major_formatter(plt.FuncFormatter(lambda x, p: f'${x:,.0f}'))
 ax.spines['top'].set_visible(False)
 ax.spines['right'].set_visible(False)
 
-corr = sample[['number_of_reviews', 'price']].corr().iloc[0,1]
+corr = sample[['number_of_reviews', 'price_clean']].corr().iloc[0,1]
 ax.text(0.95, 0.95, f'Correlation: {corr:.3f}', transform=ax.transAxes, 
         fontsize=11, ha='right', va='top', color='#1a5f4a',
         bbox=dict(boxstyle='round', facecolor='#e8f5f0', alpha=0.8, edgecolor='#1a5f4a'))

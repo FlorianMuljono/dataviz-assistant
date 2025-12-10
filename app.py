@@ -23,19 +23,261 @@ if 'webhook_url' not in st.session_state:
     st.session_state.webhook_url = ""
 
 # ============================================
-# DATASET CONFIGURATION
+# DATASET CONFIGURATION WITH CURATED QUESTIONS
 # ============================================
 DATASETS = {
     "HDB Resale Prices (Singapore)": {
         "file_id": "1HUK7Way3F4LUpgh6vA9I7UeBNHLU0khR",
         "description": "Singapore HDB resale flat transactions",
-        "icon": "🏠"
+        "icon": "🏠",
+        "questions": [
+            {
+                "category": "Trends Analysis",
+                "question": "How have resale prices changed over the years?",
+                "code_key": "hdb_price_trend"
+            },
+            {
+                "category": "Geographical Analysis",
+                "question": "Which town has the highest average resale price?",
+                "code_key": "hdb_town_price"
+            },
+            {
+                "category": "Property Analysis",
+                "question": "How do different flat types compare in terms of average resale price?",
+                "code_key": "hdb_flat_type"
+            },
+            {
+                "category": "Lease Analysis",
+                "question": "How does the lease commencement date impact the resale price?",
+                "code_key": "hdb_lease_impact"
+            },
+            {
+                "category": "Charting",
+                "question": "Show the average resale price by flat type over the years",
+                "code_key": "hdb_flattype_years"
+            }
+        ]
     },
     "Airbnb Listings (New Zealand)": {
         "file_id": "1W-peKALdxBzOHx_muetYIz_2Bb9Vg9Gh",
         "description": "New Zealand Airbnb property listings",
-        "icon": "🏡"
+        "icon": "🏡",
+        "questions": [
+            {
+                "category": "Pricing Analysis",
+                "question": "What is the average price by room type?",
+                "code_key": "airbnb_room_price"
+            },
+            {
+                "category": "Geographical Analysis", 
+                "question": "Which areas have the highest average listing prices?",
+                "code_key": "airbnb_area_price"
+            },
+            {
+                "category": "Availability Analysis",
+                "question": "How does availability vary across different room types?",
+                "code_key": "airbnb_availability"
+            },
+            {
+                "category": "Reviews Analysis",
+                "question": "What is the relationship between number of reviews and price?",
+                "code_key": "airbnb_reviews_price"
+            },
+            {
+                "category": "Host Analysis",
+                "question": "Which hosts have the most listings?",
+                "code_key": "airbnb_top_hosts"
+            }
+        ]
     }
+}
+
+# ============================================
+# VISUALIZATION CODE TEMPLATES
+# ============================================
+VIZ_CODE_TEMPLATES = {
+    # HDB Templates
+    "hdb_price_trend": """
+# Resale Price Trend Over the Years
+df['year'] = pd.to_datetime(df['month']).dt.year
+yearly_avg = df.groupby('year')['resale_price'].mean().reset_index()
+
+sns.lineplot(data=yearly_avg, x='year', y='resale_price', marker='o', linewidth=2.5, color='#2563eb', ax=ax)
+ax.fill_between(yearly_avg['year'], yearly_avg['resale_price'], alpha=0.3, color='#2563eb')
+ax.set_xlabel('Year', fontsize=12)
+ax.set_ylabel('Average Resale Price ($)', fontsize=12)
+ax.set_title('HDB Resale Price Trend Over the Years', fontsize=14, fontweight='bold')
+ax.yaxis.set_major_formatter(plt.FuncFormatter(lambda x, p: f'${x:,.0f}'))
+
+# Add annotation for latest price
+latest = yearly_avg.iloc[-1]
+ax.annotate(f'${latest["resale_price"]:,.0f}', xy=(latest['year'], latest['resale_price']),
+            xytext=(10, 10), textcoords='offset points', fontsize=10, fontweight='bold')
+""",
+    
+    "hdb_town_price": """
+# Average Resale Price by Town
+town_avg = df.groupby('town')['resale_price'].mean().sort_values(ascending=True)
+
+colors = sns.color_palette("viridis", len(town_avg))
+bars = ax.barh(town_avg.index, town_avg.values, color=colors)
+ax.set_xlabel('Average Resale Price ($)', fontsize=12)
+ax.set_ylabel('Town', fontsize=12)
+ax.set_title('Average HDB Resale Price by Town', fontsize=14, fontweight='bold')
+ax.xaxis.set_major_formatter(plt.FuncFormatter(lambda x, p: f'${x:,.0f}'))
+
+# Highlight highest
+bars[-1].set_color('#e63946')
+""",
+    
+    "hdb_flat_type": """
+# Average Resale Price by Flat Type
+flat_avg = df.groupby('flat_type')['resale_price'].mean().sort_values(ascending=True)
+
+colors = sns.color_palette("rocket", len(flat_avg))
+bars = ax.barh(flat_avg.index, flat_avg.values, color=colors)
+ax.set_xlabel('Average Resale Price ($)', fontsize=12)
+ax.set_ylabel('Flat Type', fontsize=12)
+ax.set_title('Average HDB Resale Price by Flat Type', fontsize=14, fontweight='bold')
+ax.xaxis.set_major_formatter(plt.FuncFormatter(lambda x, p: f'${x:,.0f}'))
+
+# Add value labels
+for bar, val in zip(bars, flat_avg.values):
+    ax.text(val + 5000, bar.get_y() + bar.get_height()/2, 
+            f'${val:,.0f}', va='center', fontsize=9)
+""",
+    
+    "hdb_lease_impact": """
+# Impact of Lease Commencement Date on Resale Price
+df['lease_commence_date'] = pd.to_numeric(df['lease_commence_date'], errors='coerce')
+lease_price = df.groupby('lease_commence_date')['resale_price'].mean().reset_index()
+lease_price = lease_price.dropna()
+
+sns.scatterplot(data=lease_price, x='lease_commence_date', y='resale_price', 
+                s=80, alpha=0.7, color='#2563eb', ax=ax)
+sns.regplot(data=lease_price, x='lease_commence_date', y='resale_price', 
+            scatter=False, color='#e63946', line_kws={'linewidth': 2}, ax=ax)
+
+ax.set_xlabel('Lease Commencement Year', fontsize=12)
+ax.set_ylabel('Average Resale Price ($)', fontsize=12)
+ax.set_title('Impact of Lease Commencement Date on Resale Price', fontsize=14, fontweight='bold')
+ax.yaxis.set_major_formatter(plt.FuncFormatter(lambda x, p: f'${x:,.0f}'))
+
+# Add trend annotation
+ax.text(0.05, 0.95, 'Newer leases → Higher prices', transform=ax.transAxes, 
+        fontsize=10, verticalalignment='top', style='italic',
+        bbox=dict(boxstyle='round', facecolor='wheat', alpha=0.5))
+""",
+    
+    "hdb_flattype_years": """
+# Average Resale Price by Flat Type Over the Years
+df['year'] = pd.to_datetime(df['month']).dt.year
+
+# Get top flat types
+top_flat_types = df['flat_type'].value_counts().head(5).index.tolist()
+df_filtered = df[df['flat_type'].isin(top_flat_types)]
+
+pivot = df_filtered.groupby(['year', 'flat_type'])['resale_price'].mean().reset_index()
+
+sns.lineplot(data=pivot, x='year', y='resale_price', hue='flat_type', 
+             marker='o', linewidth=2, ax=ax)
+
+ax.set_xlabel('Year', fontsize=12)
+ax.set_ylabel('Average Resale Price ($)', fontsize=12)
+ax.set_title('Average Resale Price by Flat Type Over the Years', fontsize=14, fontweight='bold')
+ax.yaxis.set_major_formatter(plt.FuncFormatter(lambda x, p: f'${x:,.0f}'))
+ax.legend(title='Flat Type', bbox_to_anchor=(1.02, 1), loc='upper left')
+""",
+
+    # Airbnb Templates
+    "airbnb_room_price": """
+# Average Price by Room Type
+room_avg = df.groupby('room_type')['price'].mean().sort_values(ascending=True)
+
+colors = sns.color_palette("viridis", len(room_avg))
+bars = ax.barh(room_avg.index, room_avg.values, color=colors)
+ax.set_xlabel('Average Price ($)', fontsize=12)
+ax.set_ylabel('Room Type', fontsize=12)
+ax.set_title('Average Airbnb Price by Room Type', fontsize=14, fontweight='bold')
+ax.xaxis.set_major_formatter(plt.FuncFormatter(lambda x, p: f'${x:,.0f}'))
+
+# Add value labels
+for bar, val in zip(bars, room_avg.values):
+    ax.text(val + 2, bar.get_y() + bar.get_height()/2, 
+            f'${val:,.0f}', va='center', fontsize=10, fontweight='bold')
+""",
+    
+    "airbnb_area_price": """
+# Top 15 Areas by Average Price
+area_avg = df.groupby('neighbourhood')['price'].mean().sort_values(ascending=False).head(15)
+area_avg = area_avg.sort_values(ascending=True)
+
+colors = sns.color_palette("rocket", len(area_avg))
+bars = ax.barh(area_avg.index, area_avg.values, color=colors)
+ax.set_xlabel('Average Price ($)', fontsize=12)
+ax.set_ylabel('Neighbourhood', fontsize=12)
+ax.set_title('Top 15 Areas with Highest Average Airbnb Prices', fontsize=14, fontweight='bold')
+ax.xaxis.set_major_formatter(plt.FuncFormatter(lambda x, p: f'${x:,.0f}'))
+""",
+    
+    "airbnb_availability": """
+# Availability by Room Type
+availability_col = [col for col in df.columns if 'availability' in col.lower()]
+if availability_col:
+    avail_col = availability_col[0]
+    room_avail = df.groupby('room_type')[avail_col].mean().sort_values(ascending=True)
+    
+    colors = sns.color_palette("Set2", len(room_avail))
+    bars = ax.barh(room_avail.index, room_avail.values, color=colors)
+    ax.set_xlabel('Average Availability (days)', fontsize=12)
+    ax.set_ylabel('Room Type', fontsize=12)
+    ax.set_title('Average Availability by Room Type', fontsize=14, fontweight='bold')
+else:
+    ax.text(0.5, 0.5, 'Availability column not found', ha='center', va='center', transform=ax.transAxes)
+""",
+    
+    "airbnb_reviews_price": """
+# Relationship between Reviews and Price
+sample = df.sample(n=min(3000, len(df)), random_state=42)
+
+sns.scatterplot(data=sample, x='number_of_reviews', y='price', 
+                alpha=0.5, s=30, color='#2563eb', ax=ax)
+                
+ax.set_xlabel('Number of Reviews', fontsize=12)
+ax.set_ylabel('Price ($)', fontsize=12)
+ax.set_title('Relationship: Number of Reviews vs Price', fontsize=14, fontweight='bold')
+ax.yaxis.set_major_formatter(plt.FuncFormatter(lambda x, p: f'${x:,.0f}'))
+
+# Add correlation
+corr = sample[['number_of_reviews', 'price']].corr().iloc[0,1]
+ax.text(0.95, 0.95, f'Correlation: {corr:.3f}', transform=ax.transAxes, 
+        fontsize=11, ha='right', va='top',
+        bbox=dict(boxstyle='round', facecolor='wheat', alpha=0.5))
+""",
+    
+    "airbnb_top_hosts": """
+# Top 15 Hosts by Number of Listings
+host_col = [col for col in df.columns if 'host' in col.lower() and 'name' in col.lower()]
+if host_col:
+    host_counts = df[host_col[0]].value_counts().head(15)
+else:
+    host_counts = df['host_id'].value_counts().head(15)
+
+host_counts = host_counts.sort_values(ascending=True)
+
+colors = sns.color_palette("viridis", len(host_counts))
+bars = ax.barh(range(len(host_counts)), host_counts.values, color=colors)
+ax.set_yticks(range(len(host_counts)))
+ax.set_yticklabels(host_counts.index.astype(str), fontsize=9)
+ax.set_xlabel('Number of Listings', fontsize=12)
+ax.set_ylabel('Host', fontsize=12)
+ax.set_title('Top 15 Hosts with Most Listings', fontsize=14, fontweight='bold')
+
+# Add count labels
+for bar, val in zip(bars, host_counts.values):
+    ax.text(val + 0.5, bar.get_y() + bar.get_height()/2, 
+            f'{val}', va='center', fontsize=9)
+"""
 }
 
 # ============================================
@@ -69,15 +311,6 @@ def analyze_dataset(df):
     categorical_cols = df.select_dtypes(include=['object']).columns.tolist()
     datetime_cols = df.select_dtypes(include=['datetime64']).columns.tolist()
     
-    for col in categorical_cols:
-        sample = df[col].dropna().iloc[0] if len(df[col].dropna()) > 0 else ""
-        if isinstance(sample, str) and any(x in sample for x in ['-', '/']) and len(sample) <= 10:
-            try:
-                pd.to_datetime(df[col].iloc[:100])
-                datetime_cols.append(col)
-            except:
-                pass
-    
     return {
         "numeric": numeric_cols,
         "categorical": categorical_cols,
@@ -105,17 +338,7 @@ Categorical columns: {', '.join(analysis['categorical'])}
 
 Sample data (first 5 rows):
 {df.head().to_string()}
-
-Numeric columns statistics:
-{df[analysis['numeric']].describe().to_string() if analysis['numeric'] else 'No numeric columns'}
-
-Categorical columns unique values:
 """
-    for col in analysis['categorical'][:8]:
-        unique_count = df[col].nunique()
-        sample_vals = df[col].dropna().unique()[:5].tolist()
-        summary += f"\n- {col}: {unique_count} unique values. Examples: {sample_vals}"
-    
     return summary
 
 # ============================================
@@ -159,199 +382,28 @@ def execute_viz_code(code, df):
         return None, str(e)
 
 # ============================================
-# DEMO MODE: Generate smart questions
+# GET VISUALIZATION CODE
 # ============================================
-def generate_smart_questions(df, dataset_name):
-    """Generate relevant questions based on actual dataset structure"""
-    analysis = analyze_dataset(df)
-    questions = []
+def get_viz_code(code_key, question, df):
+    """Get visualization code from templates or generate fallback"""
     
-    numeric_cols = analysis['numeric']
-    categorical_cols = analysis['categorical']
+    if code_key in VIZ_CODE_TEMPLATES:
+        return VIZ_CODE_TEMPLATES[code_key]
     
-    if numeric_cols:
-        main_numeric = numeric_cols[0]
-        questions.append(f"What is the distribution of {main_numeric.replace('_', ' ')}?")
-    
-    if numeric_cols and categorical_cols:
-        questions.append(f"What is the average {numeric_cols[0].replace('_', ' ')} by {categorical_cols[0].replace('_', ' ')}?")
-    
-    if categorical_cols and numeric_cols:
-        questions.append(f"Which {categorical_cols[0].replace('_', ' ')} has the highest {numeric_cols[0].replace('_', ' ')}?")
-    
-    if len(numeric_cols) >= 2:
-        questions.append(f"What is the relationship between {numeric_cols[0].replace('_', ' ')} and {numeric_cols[1].replace('_', ' ')}?")
-    
-    if categorical_cols:
-        questions.append(f"What is the distribution of {categorical_cols[0].replace('_', ' ')}?")
-    
-    return questions[:5]
-
-# ============================================
-# DEMO MODE: Generate visualization code
-# ============================================
-def generate_demo_code(question, df):
-    """Generate visualization code based on question and actual data structure"""
-    
+    # Fallback for custom questions - basic visualization
     analysis = analyze_dataset(df)
     numeric_cols = analysis['numeric']
-    categorical_cols = analysis['categorical']
     
-    question_lower = question.lower()
-    
-    # DISTRIBUTION of numeric
-    if "distribution" in question_lower and numeric_cols:
-        for col in numeric_cols:
-            if col.replace('_', ' ') in question_lower:
-                target_col = col
-                break
-        else:
-            target_col = numeric_cols[0]
-        
-        return f"""
-# Distribution of {target_col}
-sns.histplot(data=df, x='{target_col}', bins=50, kde=True, ax=ax, color='#2563eb')
-ax.set_xlabel('{target_col.replace('_', ' ').title()}', fontsize=12)
-ax.set_ylabel('Count', fontsize=12)
-ax.set_title('Distribution of {target_col.replace('_', ' ').title()}', fontsize=14, fontweight='bold')
-
-median_val = df['{target_col}'].median()
-ax.axvline(median_val, color='red', linestyle='--', linewidth=2, label=f'Median: {{median_val:,.2f}}')
-ax.legend()
-"""
-    
-    # AVERAGE by category
-    if "average" in question_lower and numeric_cols and categorical_cols:
-        target_numeric = numeric_cols[0]
-        target_cat = categorical_cols[0]
-        
-        for col in numeric_cols:
-            if col.replace('_', ' ') in question_lower:
-                target_numeric = col
-                break
-        
-        for col in categorical_cols:
-            if col.replace('_', ' ') in question_lower:
-                target_cat = col
-                break
-        
-        return f"""
-# Average {target_numeric} by {target_cat}
-grouped = df.groupby('{target_cat}')['{target_numeric}'].mean().sort_values(ascending=True)
-
-if len(grouped) > 20:
-    grouped = grouped.tail(20)
-
-colors = sns.color_palette("viridis", len(grouped))
-bars = ax.barh(grouped.index.astype(str), grouped.values, color=colors)
-ax.set_xlabel('Average {target_numeric.replace('_', ' ').title()}', fontsize=12)
-ax.set_ylabel('{target_cat.replace('_', ' ').title()}', fontsize=12)
-ax.set_title('Average {target_numeric.replace('_', ' ').title()} by {target_cat.replace('_', ' ').title()}', fontsize=14, fontweight='bold')
-"""
-    
-    # HIGHEST / TOP
-    if ("highest" in question_lower or "top" in question_lower) and numeric_cols and categorical_cols:
-        target_numeric = numeric_cols[0]
-        target_cat = categorical_cols[0]
-        
-        for col in numeric_cols:
-            if col.replace('_', ' ') in question_lower:
-                target_numeric = col
-                break
-        
-        for col in categorical_cols:
-            if col.replace('_', ' ') in question_lower:
-                target_cat = col
-                break
-        
-        return f"""
-# Top 10 {target_cat} by {target_numeric}
-grouped = df.groupby('{target_cat}')['{target_numeric}'].mean().sort_values(ascending=False).head(10)
-
-colors = sns.color_palette("rocket", len(grouped))
-bars = ax.bar(range(len(grouped)), grouped.values, color=colors)
-ax.set_xticks(range(len(grouped)))
-ax.set_xticklabels(grouped.index.astype(str), rotation=45, ha='right')
-ax.set_xlabel('{target_cat.replace('_', ' ').title()}', fontsize=12)
-ax.set_ylabel('Average {target_numeric.replace('_', ' ').title()}', fontsize=12)
-ax.set_title('Top 10 {target_cat.replace('_', ' ').title()} by {target_numeric.replace('_', ' ').title()}', fontsize=14, fontweight='bold')
-"""
-    
-    # RELATIONSHIP / CORRELATION
-    if ("relationship" in question_lower or "correlation" in question_lower) and len(numeric_cols) >= 2:
-        col1, col2 = numeric_cols[0], numeric_cols[1]
-        
-        for col in numeric_cols:
-            if col.replace('_', ' ') in question_lower:
-                if col1 == numeric_cols[0]:
-                    col1 = col
-                else:
-                    col2 = col
-        
-        return f"""
-# Relationship between {col1} and {col2}
-sample = df.sample(n=min(5000, len(df)), random_state=42)
-
-sns.regplot(data=sample, x='{col1}', y='{col2}', 
-            scatter_kws={{'alpha':0.3, 's':10}}, 
-            line_kws={{'color':'red', 'linewidth':2}}, ax=ax)
-ax.set_xlabel('{col1.replace('_', ' ').title()}', fontsize=12)
-ax.set_ylabel('{col2.replace('_', ' ').title()}', fontsize=12)
-ax.set_title('Relationship: {col1.replace('_', ' ').title()} vs {col2.replace('_', ' ').title()}', fontsize=14, fontweight='bold')
-
-corr = df[['{col1}', '{col2}']].corr().iloc[0,1]
-ax.text(0.05, 0.95, f'Correlation: {{corr:.3f}}', transform=ax.transAxes, fontsize=12,
-        verticalalignment='top', bbox=dict(boxstyle='round', facecolor='wheat', alpha=0.5))
-"""
-    
-    # CATEGORY DISTRIBUTION
-    if "distribution" in question_lower and categorical_cols:
-        target_cat = categorical_cols[0]
-        
-        for col in categorical_cols:
-            if col.replace('_', ' ') in question_lower:
-                target_cat = col
-                break
-        
-        return f"""
-# Distribution of {target_cat}
-counts = df['{target_cat}'].value_counts().head(10)
-
-colors = sns.color_palette("Set2", len(counts))
-bars = ax.bar(range(len(counts)), counts.values, color=colors)
-ax.set_xticks(range(len(counts)))
-ax.set_xticklabels(counts.index.astype(str), rotation=45, ha='right')
-ax.set_xlabel('{target_cat.replace('_', ' ').title()}', fontsize=12)
-ax.set_ylabel('Count', fontsize=12)
-ax.set_title('Distribution of {target_cat.replace('_', ' ').title()}', fontsize=14, fontweight='bold')
-
-for i, (bar, val) in enumerate(zip(bars, counts.values)):
-    ax.text(bar.get_x() + bar.get_width()/2., bar.get_height(),
-            f'{{val:,}}', ha='center', va='bottom', fontsize=9)
-"""
-    
-    # DEFAULT
     if numeric_cols:
         col = numeric_cols[0]
         return f"""
-# Overview: Distribution of {col}
+# Distribution of {col}
 sns.histplot(data=df, x='{col}', bins=50, kde=True, ax=ax, color='#2563eb')
 ax.set_xlabel('{col.replace('_', ' ').title()}', fontsize=12)
 ax.set_ylabel('Count', fontsize=12)
 ax.set_title('Distribution of {col.replace('_', ' ').title()}', fontsize=14, fontweight='bold')
 """
     
-    if categorical_cols:
-        col = categorical_cols[0]
-        return f"""
-# Overview: {col} breakdown
-counts = df['{col}'].value_counts().head(10)
-ax.bar(range(len(counts)), counts.values, color=sns.color_palette("Set2", len(counts)))
-ax.set_xticks(range(len(counts)))
-ax.set_xticklabels(counts.index.astype(str), rotation=45, ha='right')
-ax.set_title('{col.replace('_', ' ').title()} Breakdown', fontsize=14, fontweight='bold')
-"""
-
     return "ax.text(0.5, 0.5, 'Unable to generate visualization', ha='center', va='center', transform=ax.transAxes)"
 
 
@@ -393,7 +445,7 @@ def render_admin_page():
         st.success("✅ Make.com webhook configured")
         st.code(st.session_state.webhook_url[:20] + "..." if len(st.session_state.webhook_url) > 20 else st.session_state.webhook_url)
     else:
-        st.warning("⚠️ No webhook configured - running in Demo Mode")
+        st.info("ℹ️ Running in Demo Mode - Using pre-built visualizations")
     
     st.markdown("---")
     
@@ -404,6 +456,9 @@ def render_admin_page():
         with st.expander(f"{info['icon']} {name}"):
             st.write(f"**Description:** {info['description']}")
             st.write(f"**File ID:** `{info['file_id']}`")
+            st.write(f"**Questions:** {len(info['questions'])}")
+            for q in info['questions']:
+                st.write(f"  - {q['question']}")
     
     st.markdown("---")
     st.caption("Admin Settings • DataViz Assistant")
@@ -432,7 +487,8 @@ def render_main_app():
     )
     
     # Load selected dataset
-    file_id = DATASETS[selected_dataset]["file_id"]
+    dataset_config = DATASETS[selected_dataset]
+    file_id = dataset_config["file_id"]
     
     with st.spinner(f"Loading {selected_dataset}..."):
         df, error = load_dataset(file_id)
@@ -441,7 +497,7 @@ def render_main_app():
         st.error(f"❌ Failed to load data: {error}")
         st.stop()
     
-    st.success(f"✅ Loaded **{len(df):,}** records from {selected_dataset}")
+    st.success(f"✅ Loaded **{len(df):,}** records")
     
     # Data preview
     with st.expander("👀 Preview Data", expanded=False):
@@ -466,23 +522,36 @@ def render_main_app():
     # ============================================
     st.header("🤔 Step 2: Choose a Question")
     
-    suggested_questions = generate_smart_questions(df, selected_dataset)
+    # Get curated questions for this dataset
+    questions = dataset_config["questions"]
     
-    st.markdown("**Suggested questions for this dataset:**")
+    # Display as nice cards/buttons
+    st.markdown("**Select a business question:**")
     
-    question_choice = st.radio(
-        "Select a question:",
-        options=suggested_questions + ["✍️ Ask my own question..."],
+    # Create formatted options
+    question_options = []
+    for q in questions:
+        question_options.append(f"**({q['category']})** {q['question']}")
+    
+    question_options.append("✍️ Ask my own question...")
+    
+    selected_idx = st.radio(
+        "Questions:",
+        options=range(len(question_options)),
+        format_func=lambda x: question_options[x],
         label_visibility="collapsed"
     )
     
-    if question_choice == "✍️ Ask my own question...":
+    # Handle selection
+    if selected_idx == len(questions):  # Custom question
         selected_question = st.text_input(
             "Type your question:",
             placeholder="e.g., What is the average price by location?"
         )
+        code_key = "custom"
     else:
-        selected_question = question_choice
+        selected_question = questions[selected_idx]["question"]
+        code_key = questions[selected_idx]["code_key"]
     
     st.markdown("---")
     
@@ -494,28 +563,26 @@ def render_main_app():
     if st.button("🎨 Generate Chart", type="primary", disabled=not selected_question):
         with st.spinner("Creating your visualization..."):
             
-            if st.session_state.webhook_url:
-                # Use Make.com for AI-generated code
+            if st.session_state.webhook_url and code_key == "custom":
+                # Use Make.com for custom questions
                 data_summary = get_data_summary(df, selected_dataset)
                 
                 payload = {
                     "action": "generate_code",
                     "question": selected_question,
                     "data_summary": data_summary,
-                    "columns": df.columns.tolist(),
-                    "numeric_columns": analyze_dataset(df)['numeric'],
-                    "categorical_columns": analyze_dataset(df)['categorical']
+                    "columns": df.columns.tolist()
                 }
                 
                 code, error = call_makecom_webhook(st.session_state.webhook_url, payload)
                 
                 if error:
                     st.error(f"Webhook error: {error}")
-                    st.info("Falling back to Demo Mode...")
-                    code = generate_demo_code(selected_question, df)
+                    st.info("Using fallback visualization...")
+                    code = get_viz_code(code_key, selected_question, df)
             else:
-                # Demo mode
-                code = generate_demo_code(selected_question, df)
+                # Use pre-built templates
+                code = get_viz_code(code_key, selected_question, df)
             
             # Show generated code
             with st.expander("💻 View Generated Code", expanded=False):
@@ -538,14 +605,12 @@ def render_main_app():
     # ============================================
     st.markdown("---")
     
-    # Create footer with admin link on the right
     footer_cols = st.columns([8, 1])
     
     with footer_cols[0]:
         st.caption("Built with Streamlit • Data from Google Drive • AI-powered analysis")
     
     with footer_cols[1]:
-        # Small, subtle admin link
         if st.button("⚙️", help="Admin Settings", key="admin_btn"):
             st.session_state.admin_mode = True
             st.rerun()
@@ -555,12 +620,10 @@ def render_main_app():
 # MAIN ROUTER
 # ============================================
 def main():
-    # Check URL parameter for admin access
     query_params = st.query_params
     if query_params.get("admin") == "true":
         st.session_state.admin_mode = True
     
-    # Route to appropriate page
     if st.session_state.admin_mode:
         render_admin_page()
     else:
